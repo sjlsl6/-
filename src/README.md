@@ -11,9 +11,9 @@
 源码归档 SHA-256：
 
 ```text
-352ea033cb7241aa257a2634c3885e43081ae43b9fa2722fbffb763cd4fd5c40  airtype-v2.3.0-source.zip
-c8adb6a69251d479a1b373807592dba1515e209b8f8ddaba618352cdd4d03730  adb-tap-wireless-v1.1.0-source.zip
-eb0930f66c6a3c104f3f86f8cd9d1b8b02ed2b849109a0b180d067f9786497ed  adb-tap-direct-v1.2.0-source.zip
+2f3364905995e281295adf1f5ff534e02fd6d47969ae6832c7a7725d282f0128  airtype-v2.3.0-source.zip
+e17d5575276f7d890ca5c736eb3d0ac640714fcc3feaa7af7696c78b63bbf43d  adb-tap-wireless-v1.1.0-source.zip
+eda8f9c53f32781fca6f089f88a1ad9356fb07a1dada6384328bfe67fabd5b59  adb-tap-direct-v1.2.0-source.zip
 ```
 
-下载后解压对应归档即可查看、修改和构建源码。构建说明见 `../docs/BUILD.md`。
+三份归档均已完成 ZIP 完整性检查、`go test ./...` 测试和 Windows 重建验证。下载后解压对应归档即可查看、修改和构建源码。构建说明见 `../docs/BUILD.md`。
