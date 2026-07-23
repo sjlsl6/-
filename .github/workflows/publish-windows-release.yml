@@ -1,0 +1,228 @@
+name: Publish verified Windows release
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/publish-windows-release.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-windows-release
+  cancel-in-progress: false
+
+env:
+  RELEASE_TAG: v2026.07.24
+  RELEASE_TITLE: QAA AirType + ADB Toolkit v2026.07.24
+  LANZOU_SHARE_URL: https://wwaug.lanzoub.com/iRb7j3y7gdmb
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download the Lanzou package
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p work dist
+
+          download_and_check_zip() {
+            local output="$1"
+            shift
+            rm -f "$output"
+            if "$@"; then
+              python3 - "$output" <<'PY'
+import sys, zipfile
+path = sys.argv[1]
+try:
+    with zipfile.ZipFile(path) as zf:
+        bad = zf.testzip()
+        if bad:
+            raise RuntimeError(f"corrupt member: {bad}")
+except Exception as exc:
+    print(f"Not a valid ZIP: {exc}", file=sys.stderr)
+    raise SystemExit(1)
+PY
+              return 0
+            fi
+            return 1
+          }
+
+          # Preferred parser. The original Lanzou share URL remains the source of truth.
+          if download_and_check_zip work/source.zip \
+            curl --fail --location --silent --show-error \
+              --retry 3 --retry-all-errors \
+              --get --data-urlencode "url=${LANZOU_SHARE_URL}" \
+              --output work/source.zip \
+              https://lz0.qaiu.top/parser; then
+            echo "Downloaded through NFD parser."
+            exit 0
+          fi
+
+          # Fallback parser: obtain the temporary direct URL, then download it.
+          metadata="$(curl --fail --location --silent --show-error \
+            --retry 3 --retry-all-errors \
+            --get --data-urlencode "url=${LANZOU_SHARE_URL}" \
+            https://v2.xxapi.cn/api/lanzou)"
+          direct_url="$(printf '%s' "$metadata" | jq -r '.data // empty')"
+          if [[ -z "$direct_url" ]]; then
+            echo "The fallback parser did not return a direct URL." >&2
+            exit 1
+          fi
+
+          download_and_check_zip work/source.zip \
+            curl --fail --location --silent --show-error \
+              --retry 3 --retry-all-errors \
+              --output work/source.zip "$direct_url"
+
+      - name: Extract only expected executables and verify SHA-256
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+from pathlib import Path, PurePosixPath
+from zipfile import ZipFile
+import hashlib
+
+archive = Path("work/source.zip")
+out = Path("dist")
+out.mkdir(exist_ok=True)
+
+expected = {
+    "QAA-ADB-Tap-v1.1.0.exe": "fd685aba6db35ff8e4a24a5056fac2d7a0cfcf7faccaa89e9d2c5afe3ae871f7",
+    "QAA-ADB-Tap-v1.2.0-DirectADB.exe": "933ac71e5d68b8a6e7d52968c298b758c2cb55bde93611234ce33ea392453cd2",
+    "QAA-AirType-Official-Tray-v2.3.0.exe": "0326275e8a0abed9d61b4ae713d9c0c84f2eb012632832f0bd72de82c2454cbc",
+}
+
+with ZipFile(archive) as zf:
+    members = [name for name in zf.namelist() if not name.endswith("/")]
+    by_basename = {}
+    for member in members:
+        basename = PurePosixPath(member).name
+        by_basename.setdefault(basename, []).append(member)
+
+    unexpected = sorted(set(by_basename) - set(expected))
+    if unexpected:
+        raise SystemExit(f"Unexpected files in Lanzou package: {unexpected}")
+
+    for filename, wanted_hash in expected.items():
+        matches = by_basename.get(filename, [])
+        if len(matches) != 1:
+            raise SystemExit(f"Expected exactly one {filename}, found {len(matches)}")
+        data = zf.read(matches[0])
+        actual_hash = hashlib.sha256(data).hexdigest()
+        if actual_hash != wanted_hash:
+            raise SystemExit(
+                f"SHA-256 mismatch for {filename}: expected {wanted_hash}, got {actual_hash}"
+            )
+        (out / filename).write_bytes(data)
+        print(f"Verified {filename}: {actual_hash}")
+
+checksum_lines = [f"{digest}  {name}" for name, digest in expected.items()]
+(out / "EXE-SHA256SUMS.txt").write_text("\n".join(checksum_lines) + "\n", encoding="utf-8")
+PY
+
+      - name: Build user-ready bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > dist/使用说明.txt <<'EOF'
+QAA AirType + ADB Toolkit
+
+1. 手机语音/文字输入到电脑：
+   运行 QAA-AirType-Official-Tray-v2.3.0.exe
+
+2. Android 真机无线调试：
+   运行 QAA-ADB-Tap-v1.1.0.exe
+
+3. 雷电模拟器、USB 真机或其他已出现在 adb devices 中的设备：
+   运行 QAA-ADB-Tap-v1.2.0-DirectADB.exe
+
+本项目不是 QAA-Tools 官方发行版。
+程序目前没有商业代码签名，Windows 可能提示“未知发布者”。
+请从项目 GitHub Releases 或项目 README 列出的蓝奏云链接下载，并核对 SHA-256。
+EOF
+
+          (
+            cd dist
+            zip -9 -j ../work/QAA-AirType-ADB-Toolkit-Windows.zip \
+              QAA-AirType-Official-Tray-v2.3.0.exe \
+              QAA-ADB-Tap-v1.1.0.exe \
+              QAA-ADB-Tap-v1.2.0-DirectADB.exe \
+              EXE-SHA256SUMS.txt \
+              使用说明.txt
+          )
+
+          cp dist/EXE-SHA256SUMS.txt work/SHA256SUMS.txt
+          sha256sum work/QAA-AirType-ADB-Toolkit-Windows.zip \
+            | sed 's#work/##' >> work/SHA256SUMS.txt
+          cat work/SHA256SUMS.txt
+
+      - name: Write release notes
+        shell: bash
+        run: |
+          cat > work/RELEASE_NOTES.md <<'EOF'
+# QAA AirType + ADB Toolkit
+
+这是面向 Windows 用户的可直接运行发行版。无需安装 Go，也无需自行编译源码。
+
+## 下载哪个文件
+
+- `QAA-AirType-Official-Tray-v2.3.0.exe`：手机网页/语音输入到 Windows 当前输入框。
+- `QAA-ADB-Tap-v1.1.0.exe`：Android 无线调试版本。
+- `QAA-ADB-Tap-v1.2.0-DirectADB.exe`：雷电模拟器、USB 真机及其他已进入 `adb devices` 的设备。
+- `QAA-AirType-ADB-Toolkit-Windows.zip`：以上三个程序的一体包。
+- `SHA256SUMS.txt`：下载校验值。
+
+## 备用下载
+
+蓝奏云：https://wwaug.lanzoub.com/iRb7j3y7gdmb
+
+## 完整性校验
+
+发行流程从上述蓝奏云分享包提取三个 EXE，并在上传 Release 前强制验证固定 SHA-256。任一文件缺失、被替换或校验不一致时，发行流程会失败。
+
+## 注意
+
+- 本仓库是社区修改/扩展项目，不是 QAA-Tools 官方发行版。
+- 历史 AirType 文件名里的 `Official` 不代表官方背书。
+- 三个程序目前没有商业代码签名，Windows SmartScreen 可能提示“未知发布者”。请确认下载来源并核对 SHA-256。
+- AirType 建议仅在可信局域网中使用；ADB 只应连接你拥有或明确获授权控制的设备。
+EOF
+
+      - name: Create or update GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          assets=(
+            dist/QAA-AirType-Official-Tray-v2.3.0.exe
+            dist/QAA-ADB-Tap-v1.1.0.exe
+            dist/QAA-ADB-Tap-v1.2.0-DirectADB.exe
+            work/QAA-AirType-ADB-Toolkit-Windows.zip
+            work/SHA256SUMS.txt
+          )
+
+          if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
+            gh release upload "${RELEASE_TAG}" "${assets[@]}" --clobber
+            gh release edit "${RELEASE_TAG}" \
+              --title "${RELEASE_TITLE}" \
+              --notes-file work/RELEASE_NOTES.md \
+              --latest
+          else
+            gh release create "${RELEASE_TAG}" "${assets[@]}" \
+              --target "${GITHUB_SHA}" \
+              --title "${RELEASE_TITLE}" \
+              --notes-file work/RELEASE_NOTES.md \
+              --latest
+          fi
