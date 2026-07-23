@@ -23,6 +23,7 @@ env:
   RELEASE_TAG: v2026.07.24
   RELEASE_TITLE: QAA AirType + ADB Toolkit v2026.07.24
   LANZOU_SHARE_URL: https://wwaug.lanzoub.com/iRb7j3y7gdmb
+  LANZOU_SHARE_KEY: iRb7j3y7gdmb
 
 jobs:
   publish:
@@ -31,71 +32,94 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Download the Lanzou package
         shell: bash
         run: |
-          set -euo pipefail
+          set -Eeuo pipefail
           mkdir -p work dist
+          : > work/download-errors.log
 
-          download_and_check_zip() {
-            local output="$1"
+          try_download() {
+            local label="$1"
             shift
-            rm -f "$output"
-            if "$@"; then
-              python3 - "$output" <<'PY'
-          import sys
-          import zipfile
+            echo "Trying: ${label}"
+            rm -f work/source.zip
 
-          path = sys.argv[1]
-          try:
-              with zipfile.ZipFile(path) as zf:
-                  bad = zf.testzip()
-                  if bad:
-                      raise RuntimeError(f"corrupt member: {bad}")
-          except Exception as exc:
-              print(f"Not a valid ZIP: {exc}", file=sys.stderr)
-              raise SystemExit(1)
-          PY
-              return 0
+            if "$@" 2>>work/download-errors.log; then
+              if unzip -tqq work/source.zip >>work/download-errors.log 2>&1; then
+                echo "Valid ZIP obtained via: ${label}"
+                return 0
+              fi
+            fi
+
+            echo "Failed: ${label}" | tee -a work/download-errors.log
+            if [[ -f work/source.zip ]]; then
+              file work/source.zip 2>&1 | tee -a work/download-errors.log || true
+              printf 'First bytes (hex): ' >> work/download-errors.log
+              head -c 64 work/source.zip | xxd -p >> work/download-errors.log || true
             fi
             return 1
           }
 
-          # Preferred parser. The original Lanzou share URL remains the source of truth.
-          if download_and_check_zip work/source.zip \
+          # Direct short-key route documented by the parser service.
+          if try_download "NFD short-key route" \
             curl --fail --location --silent --show-error \
-              --retry 3 --retry-all-errors \
-              --get --data-urlencode "url=${LANZOU_SHARE_URL}" \
+              --retry 2 --retry-all-errors --connect-timeout 15 --max-time 120 \
               --output work/source.zip \
-              https://lz0.qaiu.top/parser; then
-            echo "Downloaded through NFD parser."
+              "https://lz0.qaiu.top/d/lz/${LANZOU_SHARE_KEY}"; then
             exit 0
           fi
 
-          # Fallback parser: obtain the temporary direct URL, then download it.
-          metadata="$(curl --fail --location --silent --show-error \
-            --retry 3 --retry-all-errors \
-            --get --data-urlencode "url=${LANZOU_SHARE_URL}" \
-            https://v2.xxapi.cn/api/lanzou)"
-          direct_url="$(printf '%s' "$metadata" | jq -r '.data // empty')"
-          if [[ -z "$direct_url" ]]; then
-            echo "The fallback parser did not return a direct URL." >&2
-            exit 1
+          # Parse the exact user-provided share URL.
+          if try_download "NFD original share URL" \
+            curl --fail --location --silent --show-error \
+              --retry 2 --retry-all-errors --connect-timeout 15 --max-time 120 \
+              --get --data-urlencode "url=${LANZOU_SHARE_URL}" \
+              --output work/source.zip \
+              https://lz0.qaiu.top/parser; then
+            exit 0
           fi
 
-          download_and_check_zip work/source.zip \
-            curl --fail --location --silent --show-error \
-              --retry 3 --retry-all-errors \
-              --output work/source.zip "$direct_url"
+          # Lanzou domains are interchangeable in many regions. Try common variants.
+          for domain in lanzoul.com lanzoux.com lanzoui.com lanzout.com; do
+            variant="https://wwaug.${domain}/${LANZOU_SHARE_KEY}"
+            if try_download "NFD domain variant ${domain}" \
+              curl --fail --location --silent --show-error \
+                --retry 2 --retry-all-errors --connect-timeout 15 --max-time 120 \
+                --get --data-urlencode "url=${variant}" \
+                --output work/source.zip \
+                https://lz0.qaiu.top/parser; then
+              exit 0
+            fi
+          done
+
+          # Final fallback: ask a second parser for a temporary direct URL.
+          metadata="$(curl --fail --location --silent --show-error \
+            --retry 2 --retry-all-errors --connect-timeout 15 --max-time 120 \
+            --get --data-urlencode "url=${LANZOU_SHARE_URL}" \
+            https://v2.xxapi.cn/api/lanzou \
+            2>>work/download-errors.log || true)"
+          direct_url="$(printf '%s' "$metadata" | jq -r '.data // empty' 2>>work/download-errors.log || true)"
+          if [[ -n "$direct_url" ]]; then
+            if try_download "xxapi temporary direct URL" \
+              curl --fail --location --silent --show-error \
+                --retry 2 --retry-all-errors --connect-timeout 15 --max-time 120 \
+                --output work/source.zip "$direct_url"; then
+              exit 0
+            fi
+          else
+            echo "xxapi did not return a direct URL. Response: ${metadata}" >> work/download-errors.log
+          fi
+
+          echo "All Lanzou download methods failed." | tee -a work/download-errors.log
+          cat work/download-errors.log
+          exit 1
 
       - name: Extract only expected executables and verify SHA-256
         shell: bash
         run: |
           set -euo pipefail
-          python3 <<'PY'
+          python3 <<'PY' 2>&1 | tee work/verify.log
           from pathlib import Path, PurePosixPath
           from zipfile import ZipFile
           import hashlib
@@ -253,6 +277,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          {
+            echo "The release workflow failed."
+            echo
+            echo "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo
+            echo '```text'
+            tail -c 5000 work/download-errors.log 2>/dev/null || true
+            tail -c 5000 work/verify.log 2>/dev/null || true
+            echo '```'
+          } > work/failure-report.md
+
           gh issue create \
             --title "Release bot failure: ${RELEASE_TAG}" \
-            --body "The release workflow failed. Inspect the run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            --body-file work/failure-report.md
