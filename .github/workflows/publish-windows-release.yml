@@ -17,13 +17,11 @@ permissions:
 
 concurrency:
   group: publish-windows-release
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   RELEASE_TAG: v2026.07.24
   RELEASE_TITLE: QAA AirType + ADB Toolkit v2026.07.24
-  LANZOU_SHARE_URL: https://wwaug.lanzoub.com/iRb7j3y7gdmb
-  LANZOU_SHARE_KEY: iRb7j3y7gdmb
 
 jobs:
   publish:
@@ -32,140 +30,76 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - name: Download the Lanzou package
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          mkdir -p work dist
-          : > work/download-errors.log
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-          try_download() {
-            local label="$1"
-            shift
-            echo "Trying: ${label}"
-            rm -f work/source.zip
+      - name: Set up exact Go toolchain
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.23.2
+          check-latest: false
 
-            if "$@" 2>>work/download-errors.log; then
-              if unzip -tqq work/source.zip >>work/download-errors.log 2>&1; then
-                echo "Valid ZIP obtained via: ${label}"
-                return 0
-              fi
-            fi
-
-            echo "Failed: ${label}" | tee -a work/download-errors.log
-            if [[ -f work/source.zip ]]; then
-              file work/source.zip 2>&1 | tee -a work/download-errors.log || true
-              printf 'First bytes (hex): ' >> work/download-errors.log
-              head -c 64 work/source.zip | xxd -p >> work/download-errors.log || true
-            fi
-            return 1
-          }
-
-          # Direct short-key route documented by the parser service.
-          if try_download "NFD short-key route" \
-            curl --fail --location --silent --show-error \
-              --retry 2 --retry-all-errors --connect-timeout 15 --max-time 120 \
-              --output work/source.zip \
-              "https://lz0.qaiu.top/d/lz/${LANZOU_SHARE_KEY}"; then
-            exit 0
-          fi
-
-          # Parse the exact user-provided share URL.
-          if try_download "NFD original share URL" \
-            curl --fail --location --silent --show-error \
-              --retry 2 --retry-all-errors --connect-timeout 15 --max-time 120 \
-              --get --data-urlencode "url=${LANZOU_SHARE_URL}" \
-              --output work/source.zip \
-              https://lz0.qaiu.top/parser; then
-            exit 0
-          fi
-
-          # Lanzou domains are interchangeable in many regions. Try common variants.
-          for domain in lanzoul.com lanzoux.com lanzoui.com lanzout.com; do
-            variant="https://wwaug.${domain}/${LANZOU_SHARE_KEY}"
-            if try_download "NFD domain variant ${domain}" \
-              curl --fail --location --silent --show-error \
-                --retry 2 --retry-all-errors --connect-timeout 15 --max-time 120 \
-                --get --data-urlencode "url=${variant}" \
-                --output work/source.zip \
-                https://lz0.qaiu.top/parser; then
-              exit 0
-            fi
-          done
-
-          # Final fallback: ask a second parser for a temporary direct URL.
-          metadata="$(curl --fail --location --silent --show-error \
-            --retry 2 --retry-all-errors --connect-timeout 15 --max-time 120 \
-            --get --data-urlencode "url=${LANZOU_SHARE_URL}" \
-            https://v2.xxapi.cn/api/lanzou \
-            2>>work/download-errors.log || true)"
-          direct_url="$(printf '%s' "$metadata" | jq -r '.data // empty' 2>>work/download-errors.log || true)"
-          if [[ -n "$direct_url" ]]; then
-            if try_download "xxapi temporary direct URL" \
-              curl --fail --location --silent --show-error \
-                --retry 2 --retry-all-errors --connect-timeout 15 --max-time 120 \
-                --output work/source.zip "$direct_url"; then
-              exit 0
-            fi
-          else
-            echo "xxapi did not return a direct URL. Response: ${metadata}" >> work/download-errors.log
-          fi
-
-          echo "All Lanzou download methods failed." | tee -a work/download-errors.log
-          cat work/download-errors.log
-          exit 1
-
-      - name: Extract only expected executables and verify SHA-256
+      - name: Extract the three public source archives
         shell: bash
         run: |
           set -euo pipefail
-          python3 <<'PY' 2>&1 | tee work/verify.log
-          from pathlib import Path, PurePosixPath
-          from zipfile import ZipFile
-          import hashlib
+          mkdir -p work/src dist
+          unzip -q src/airtype-v2.3.0-source.zip -d work/src
+          unzip -q src/adb-tap-wireless-v1.1.0-source.zip -d work/src
+          unzip -q src/adb-tap-direct-v1.2.0-source.zip -d work/src
+          find work/src -maxdepth 2 -type f | sort
 
-          archive = Path("work/source.zip")
-          out = Path("dist")
-          out.mkdir(exist_ok=True)
+      - name: Run all source tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd work/src/airtype-v2.3.0 && go test ./...)
+          (cd work/src/adb-tap-wireless-v1.1.0 && go test ./...)
+          (cd work/src/adb-tap-direct-v1.2.0 && go test ./...)
 
-          expected = {
-              "QAA-ADB-Tap-v1.1.0.exe": "fd685aba6db35ff8e4a24a5056fac2d7a0cfcf7faccaa89e9d2c5afe3ae871f7",
-              "QAA-ADB-Tap-v1.2.0-DirectADB.exe": "933ac71e5d68b8a6e7d52968c298b758c2cb55bde93611234ce33ea392453cd2",
-              "QAA-AirType-Official-Tray-v2.3.0.exe": "0326275e8a0abed9d61b4ae713d9c0c84f2eb012632832f0bd72de82c2454cbc",
-          }
+      - name: Rebuild the exact tested Windows executables
+        shell: bash
+        run: |
+          set -euo pipefail
 
-          with ZipFile(archive) as zf:
-              members = [name for name in zf.namelist() if not name.endswith("/")]
-              by_basename = {}
-              for member in members:
-                  basename = PurePosixPath(member).name
-                  by_basename.setdefault(basename, []).append(member)
+          AIRTYPE_BUILD_ID='N1kGQiO1P6MzOKbcXgXd/skKJPixqLtyG3qtgIffH/_rsAK9qPrzbXJoXR7YLR/TWbXoBLMtW9ip9oHsDoQ'
 
-              unexpected = sorted(set(by_basename) - set(expected))
-              if unexpected:
-                  raise SystemExit(f"Unexpected files in Lanzou package: {unexpected}")
-
-              for filename, wanted_hash in expected.items():
-                  matches = by_basename.get(filename, [])
-                  if len(matches) != 1:
-                      raise SystemExit(f"Expected exactly one {filename}, found {len(matches)}")
-                  data = zf.read(matches[0])
-                  actual_hash = hashlib.sha256(data).hexdigest()
-                  if actual_hash != wanted_hash:
-                      raise SystemExit(
-                          f"SHA-256 mismatch for {filename}: expected {wanted_hash}, got {actual_hash}"
-                      )
-                  (out / filename).write_bytes(data)
-                  print(f"Verified {filename}: {actual_hash}")
-
-          checksum_lines = [f"{digest}  {name}" for name, digest in expected.items()]
-          (out / "EXE-SHA256SUMS.txt").write_text(
-              "\n".join(checksum_lines) + "\n",
-              encoding="utf-8",
+          (
+            cd work/src/airtype-v2.3.0
+            GOOS=windows GOARCH=amd64 CGO_ENABLED=0 \
+              go build -trimpath \
+              -ldflags "-H=windowsgui -s -w -buildid=${AIRTYPE_BUILD_ID}" \
+              -o ../../../dist/QAA-AirType-Official-Tray-v2.3.0.exe .
           )
-          PY
 
-      - name: Build user-ready bundle
+          (
+            cd work/src/adb-tap-wireless-v1.1.0
+            GOOS=windows GOARCH=amd64 CGO_ENABLED=0 \
+              go build -trimpath -ldflags '-s -w -H=windowsgui' \
+              -o ../../../dist/QAA-ADB-Tap-v1.1.0.exe .
+          )
+
+          (
+            cd work/src/adb-tap-direct-v1.2.0
+            GOOS=windows GOARCH=amd64 CGO_ENABLED=0 \
+              go build -trimpath -ldflags '-s -w -H=windowsgui' \
+              -o ../../../dist/QAA-ADB-Tap-v1.2.0-DirectADB.exe .
+          )
+
+      - name: Verify exact SHA-256 values
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s  %s\n' \
+            'fd685aba6db35ff8e4a24a5056fac2d7a0cfcf7faccaa89e9d2c5afe3ae871f7' 'QAA-ADB-Tap-v1.1.0.exe' \
+            '933ac71e5d68b8a6e7d52968c298b758c2cb55bde93611234ce33ea392453cd2' 'QAA-ADB-Tap-v1.2.0-DirectADB.exe' \
+            '0326275e8a0abed9d61b4ae713d9c0c84f2eb012632832f0bd72de82c2454cbc' 'QAA-AirType-Official-Tray-v2.3.0.exe' \
+            > work/EXE-SHA256SUMS.txt
+
+          (cd dist && sha256sum -c ../work/EXE-SHA256SUMS.txt)
+          cp work/EXE-SHA256SUMS.txt dist/EXE-SHA256SUMS.txt
+
+      - name: Build the user-ready all-in-one package
         shell: bash
         run: |
           set -euo pipefail
@@ -183,7 +117,8 @@ jobs:
 
           本项目不是 QAA-Tools 官方发行版。
           程序目前没有商业代码签名，Windows 可能提示“未知发布者”。
-          请从项目 GitHub Releases 或项目 README 列出的蓝奏云链接下载，并核对 SHA-256。
+          项目主页：https://github.com/sjlsl6/-
+          蓝奏云备用下载：https://wwaug.lanzoub.com/iRb7j3y7gdmb
           EOF
 
           (
@@ -196,7 +131,7 @@ jobs:
               使用说明.txt
           )
 
-          cp dist/EXE-SHA256SUMS.txt work/SHA256SUMS.txt
+          cp work/EXE-SHA256SUMS.txt work/SHA256SUMS.txt
           sha256sum work/QAA-AirType-ADB-Toolkit-Windows.zip \
             | sed 's#work/##' >> work/SHA256SUMS.txt
           cat work/SHA256SUMS.txt
@@ -221,9 +156,9 @@ jobs:
 
           蓝奏云：https://wwaug.lanzoub.com/iRb7j3y7gdmb
 
-          ## 完整性校验
+          ## 完整性保证
 
-          发行流程从上述蓝奏云分享包提取三个 EXE，并在上传 Release 前强制验证固定 SHA-256。任一文件缺失、被替换或校验不一致时，发行流程会失败。
+          本发行版由仓库中的三套公开源码使用固定 Go 1.23.2 工具链重新构建。工作流在上传前强制校验三个 EXE 的固定 SHA-256；任一构建结果不一致时，发行流程会失败。
 
           ## 注意
 
@@ -269,7 +204,7 @@ jobs:
         run: |
           gh issue create \
             --title "Release bot success: ${RELEASE_TAG}" \
-            --body "The verified GitHub Release was published successfully. Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            --body "The three exact verified EXEs and the all-in-one ZIP were published successfully. Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
       - name: Report publication failure
         if: ${{ failure() }}
@@ -277,17 +212,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          {
-            echo "The release workflow failed."
-            echo
-            echo "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-            echo
-            echo '```text'
-            tail -c 5000 work/download-errors.log 2>/dev/null || true
-            tail -c 5000 work/verify.log 2>/dev/null || true
-            echo '```'
-          } > work/failure-report.md
-
           gh issue create \
             --title "Release bot failure: ${RELEASE_TAG}" \
-            --body-file work/failure-report.md
+            --body "The source-rebuild release workflow failed. Inspect: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
