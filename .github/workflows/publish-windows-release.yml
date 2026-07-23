@@ -2,6 +2,9 @@ name: Publish verified Windows release
 
 on:
   workflow_dispatch:
+  issues:
+    types:
+      - opened
   push:
     branches:
       - main
@@ -10,6 +13,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
 
 concurrency:
   group: publish-windows-release
@@ -22,6 +26,7 @@ env:
 
 jobs:
   publish:
+    if: ${{ github.event_name != 'issues' || github.event.issue.title == 'Publish Windows release v2026.07.24' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -231,3 +236,23 @@ jobs:
               --notes-file work/RELEASE_NOTES.md \
               --latest
           fi
+
+      - name: Report successful publication
+        if: ${{ success() }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create \
+            --title "Release bot success: ${RELEASE_TAG}" \
+            --body "The verified GitHub Release was published successfully. Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+      - name: Report publication failure
+        if: ${{ failure() }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create \
+            --title "Release bot failure: ${RELEASE_TAG}" \
+            --body "The release workflow failed. Inspect the run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
