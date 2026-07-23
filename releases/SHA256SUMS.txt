@@ -1,0 +1,3 @@
+fd685aba6db35ff8e4a24a5056fac2d7a0cfcf7faccaa89e9d2c5afe3ae871f7  QAA-ADB-Tap-v1.1.0.exe
+933ac71e5d68b8a6e7d52968c298b758c2cb55bde93611234ce33ea392453cd2  QAA-ADB-Tap-v1.2.0-DirectADB.exe
+0326275e8a0abed9d61b4ae713d9c0c84f2eb012632832f0bd72de82c2454cbc  QAA-AirType-Official-Tray-v2.3.0.exe

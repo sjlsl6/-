@@ -1,0 +1,18 @@
+# Build outputs
+*.exe
+*.dll
+*.tmp
+*.rar
+*.zip
+!src/*-source.zip
+
+# Runtime/local configuration
+config.json
+*.log
+platform-tools/
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

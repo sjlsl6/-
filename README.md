@@ -16,15 +16,13 @@
 
 电脑端语音输入在麦克风、识别效果和输入法体验上不一定理想，而手机端语音输入通常更顺手。AirType 让手机承担“输入设备”的角色：手机上完成语音转文字，再把文本发送到电脑当前输入框。
 
-在此基础上，ADB Tap 解决另一类操作：当手机/模拟器上的固定按钮需要反复点击时，可以把数字小键盘 `-` / `+` 映射为 Android 的两个坐标点击，并准备三套可切换坐标模式。
+在此基础上，ADB Tap 解决另一类操作：当手机或模拟器上的固定按钮需要反复点击时，可以把数字小键盘 `-` / `+` 映射为 Android 的两个坐标点击，并准备三套可切换坐标模式。
 
-## 三个组件的区别
+## 三个组件
 
-### AirType v2.3.0
+### QAA AirType v2.3.0
 
-典型链路：
-
-`手机输入法/语音输入 → 手机网页 → 局域网 → Windows AirType → 当前输入框`
+典型链路：`手机输入法/语音输入 → 手机网页 → 局域网 → Windows AirType → 当前输入框`
 
 主要能力：
 
@@ -35,9 +33,9 @@
 - 手机端发送文字后写入电脑当前输入位置。
 - 适合搭配手机端语音输入法使用。
 
-源码：`src/airtype-v2.3.0/`
+源码归档：`src/airtype-v2.3.0-source.zip`
 
-### ADB Tap v1.1.0 — Wireless ADB
+### QAA ADB Tap v1.1.0 — Wireless ADB
 
 面向 Android 无线调试：
 
@@ -45,11 +43,11 @@
 - 支持手动 ADB 地址连接作为备用。
 - 支持三套独立坐标模式。
 - 数字小键盘 `-` / `+` 触发对应坐标点击。
-- 使用常驻 ADB Shell，减少连续触发时反复启动 adb shell 的开销。
+- 使用常驻 ADB Shell，减少连续触发时反复启动 `adb shell` 的开销。
 
-源码：`src/adb-tap-wireless-v1.1.0/`
+源码归档：`src/adb-tap-wireless-v1.1.0-source.zip`
 
-### ADB Tap v1.2.0 — DirectADB
+### QAA ADB Tap v1.2.0 — DirectADB
 
 这是对连接层的定向改版：不再处理无线配对，而是直接复用已经存在的 ADB 设备连接。
 
@@ -63,7 +61,7 @@
 - 适合雷电模拟器等模拟器，也支持已经授权的 USB 调试真机。
 - 保留三套坐标模式、`-` / `+` 热键和常驻 Shell 点击链路。
 
-源码：`src/adb-tap-direct-v1.2.0/`
+源码归档：`src/adb-tap-direct-v1.2.0-source.zip`
 
 ## 推荐使用方式
 
@@ -76,13 +74,14 @@
 
 详细步骤见 `docs/USAGE.md`。
 
-## 源码目录
+## 仓库结构
 
 ```text
 src/
-├─ airtype-v2.3.0/
-├─ adb-tap-wireless-v1.1.0/
-└─ adb-tap-direct-v1.2.0/
+├─ airtype-v2.3.0-source.zip
+├─ adb-tap-wireless-v1.1.0-source.zip
+├─ adb-tap-direct-v1.2.0-source.zip
+└─ README.md
 
 docs/
 ├─ USAGE.md
@@ -94,17 +93,19 @@ licenses/
 └─ QR_CODE_LICENSE.txt
 ```
 
+三个 `*-source.zip` 均为纯源码归档，不包含 EXE、运行时 `config.json`、个人 Token、真实设备序列号或本机私有配置。
+
 ## 构建
 
-三个项目均为 Go 项目，当前源码按 Go 1.23 系列验证。
-
-在对应源码目录运行：
+三个项目均为 Go 项目，当前源码按 Go 1.23 系列验证。下载并解压对应源码包后，在项目目录运行：
 
 ```bat
 build_windows.cmd
 ```
 
 脚本会先执行 `go test ./...`，然后构建 Windows amd64 GUI 程序。构建使用 `-trimpath`，减少本机绝对源码路径进入构建信息的风险。
+
+本次发布前，三套源码均已执行 `go test ./...` 并通过。
 
 完整说明见 `docs/BUILD.md`。
 
@@ -116,7 +117,7 @@ fd685aba6db35ff8e4a24a5056fac2d7a0cfcf7faccaa89e9d2c5afe3ae871f7  QAA-ADB-Tap-v1
 0326275e8a0abed9d61b4ae713d9c0c84f2eb012632832f0bd72de82c2454cbc  QAA-AirType-Official-Tray-v2.3.0.exe
 ```
 
-同样记录在 `releases/SHA256SUMS.txt`。
+同样记录在 `releases/SHA256SUMS.txt`。公开仓库当前以源码和文档为主，二进制文件可从你信任的发布渠道取得后按哈希校验。
 
 ## 隐私与安全
 
@@ -143,12 +144,7 @@ ADB 属于 Android Open Source Project；DirectADB/无线版在用户主动准�
 
 ## License
 
-本仓库原创/修改部分按 MIT License 开源；第三方代码与组件按其各自许可证授权。请同时阅读：
-
-- `LICENSE`
-- `THIRD_PARTY_NOTICES.md`
-- `licenses/APACHE-2.0.txt`
-- `licenses/QR_CODE_LICENSE.txt`
+本仓库原创/修改部分按 MIT License 开源；第三方代码与组件按其各自许可证授权。请同时阅读 `LICENSE`、`THIRD_PARTY_NOTICES.md` 及 `licenses/`。
 
 ## Disclaimer
 
