@@ -1,0 +1,242 @@
+name: Publish deterministic Windows release v2
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/publish-release-v2.yml
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: publish-windows-release
+  cancel-in-progress: true
+
+env:
+  RELEASE_TAG: v2026.07.24
+  RELEASE_TITLE: QAA AirType + ADB Toolkit v2026.07.24
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go 1.23.2
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.23.2
+          check-latest: false
+
+      - name: Verify and extract source archives
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p work/src dist
+          exec > >(tee -a work/release.log) 2>&1
+
+          echo 'Repository source archives:'
+          ls -lh src/*-source.zip
+
+          printf '%s  %s\n' \
+            '352ea033cb7241aa257a2634c3885e43081ae43b9fa2722fbffb763cd4fd5c40' 'src/airtype-v2.3.0-source.zip' \
+            'c8adb6a69251d479a1b373807592dba1515e209b8f8ddaba618352cdd4d03730' 'src/adb-tap-wireless-v1.1.0-source.zip' \
+            'eb0930f66c6a3c104f3f86f8cd9d1b8b02ed2b849109a0b180d067f9786497ed' 'src/adb-tap-direct-v1.2.0-source.zip' \
+            > work/SOURCE-SHA256SUMS.txt
+          sha256sum -c work/SOURCE-SHA256SUMS.txt
+
+          python3 <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+
+          output = Path('work/src')
+          archives = [
+              Path('src/airtype-v2.3.0-source.zip'),
+              Path('src/adb-tap-wireless-v1.1.0-source.zip'),
+              Path('src/adb-tap-direct-v1.2.0-source.zip'),
+          ]
+          for archive in archives:
+              print(f'Checking and extracting {archive}')
+              with ZipFile(archive) as zf:
+                  bad = zf.testzip()
+                  if bad:
+                      raise RuntimeError(f'Corrupt member in {archive}: {bad}')
+                  zf.extractall(output)
+          PY
+
+          echo 'Extracted Go modules:'
+          find work/src -name go.mod -print -exec cat {} \;
+
+      - name: Test and build exact Windows executables
+        shell: bash
+        run: |
+          set -euo pipefail
+          exec > >(tee -a work/release.log) 2>&1
+          ROOT="$PWD"
+          DIST="$ROOT/dist"
+
+          AIRTYPE_DIR="$(dirname "$(find work/src -path '*/airtype-v2.3.0/go.mod' -print -quit)")"
+          WIRELESS_DIR="$(dirname "$(find work/src -path '*/adb-tap-wireless-v1.1.0/go.mod' -print -quit)")"
+          DIRECT_DIR="$(dirname "$(find work/src -path '*/adb-tap-direct-v1.2.0/go.mod' -print -quit)")"
+
+          test -n "$AIRTYPE_DIR" && test -n "$WIRELESS_DIR" && test -n "$DIRECT_DIR"
+          printf 'AirType source: %s\nWireless source: %s\nDirect source: %s\n' \
+            "$AIRTYPE_DIR" "$WIRELESS_DIR" "$DIRECT_DIR"
+
+          (cd "$AIRTYPE_DIR" && go test ./...)
+          (cd "$WIRELESS_DIR" && go test ./...)
+          (cd "$DIRECT_DIR" && go test ./...)
+
+          AIRTYPE_BUILD_ID='N1kGQiO1P6MzOKbcXgXd/skKJPixqLtyG3qtgIffH/_rsAK9qPrzbXJoXR7YLR/TWbXoBLMtW9ip9oHsDoQ'
+
+          (
+            cd "$AIRTYPE_DIR"
+            GOOS=windows GOARCH=amd64 CGO_ENABLED=0 \
+              go build -trimpath \
+              -ldflags "-H=windowsgui -s -w -buildid=${AIRTYPE_BUILD_ID}" \
+              -o "$DIST/QAA-AirType-Official-Tray-v2.3.0.exe" .
+          )
+          (
+            cd "$WIRELESS_DIR"
+            GOOS=windows GOARCH=amd64 CGO_ENABLED=0 \
+              go build -trimpath -ldflags '-s -w -H=windowsgui' \
+              -o "$DIST/QAA-ADB-Tap-v1.1.0.exe" .
+          )
+          (
+            cd "$DIRECT_DIR"
+            GOOS=windows GOARCH=amd64 CGO_ENABLED=0 \
+              go build -trimpath -ldflags '-s -w -H=windowsgui' \
+              -o "$DIST/QAA-ADB-Tap-v1.2.0-DirectADB.exe" .
+          )
+
+          printf '%s  %s\n' \
+            'fd685aba6db35ff8e4a24a5056fac2d7a0cfcf7faccaa89e9d2c5afe3ae871f7' 'QAA-ADB-Tap-v1.1.0.exe' \
+            '933ac71e5d68b8a6e7d52968c298b758c2cb55bde93611234ce33ea392453cd2' 'QAA-ADB-Tap-v1.2.0-DirectADB.exe' \
+            '0326275e8a0abed9d61b4ae713d9c0c84f2eb012632832f0bd72de82c2454cbc' 'QAA-AirType-Official-Tray-v2.3.0.exe' \
+            > work/EXE-SHA256SUMS.txt
+
+          (cd dist && sha256sum -c ../work/EXE-SHA256SUMS.txt)
+          cp work/EXE-SHA256SUMS.txt dist/EXE-SHA256SUMS.txt
+
+      - name: Build all-in-one ZIP and release notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          exec > >(tee -a work/release.log) 2>&1
+
+          cat > dist/使用说明.txt <<'EOF'
+          QAA AirType + ADB Toolkit
+
+          手机语音/文字输入到电脑：运行 QAA-AirType-Official-Tray-v2.3.0.exe
+          Android 真机无线调试：运行 QAA-ADB-Tap-v1.1.0.exe
+          雷电模拟器、USB 真机或其他已在线 ADB 设备：运行 QAA-ADB-Tap-v1.2.0-DirectADB.exe
+
+          项目主页：https://github.com/sjlsl6/-
+          蓝奏云备用下载：https://wwaug.lanzoub.com/iRb7j3y7gdmb
+          本项目不是 QAA-Tools 官方发行版。
+          EOF
+
+          (
+            cd dist
+            zip -9 -j ../work/QAA-AirType-ADB-Toolkit-Windows.zip \
+              QAA-AirType-Official-Tray-v2.3.0.exe \
+              QAA-ADB-Tap-v1.1.0.exe \
+              QAA-ADB-Tap-v1.2.0-DirectADB.exe \
+              EXE-SHA256SUMS.txt \
+              使用说明.txt
+          )
+
+          cp work/EXE-SHA256SUMS.txt work/SHA256SUMS.txt
+          sha256sum work/QAA-AirType-ADB-Toolkit-Windows.zip \
+            | sed 's#work/##' >> work/SHA256SUMS.txt
+
+          cat > work/RELEASE_NOTES.md <<'EOF'
+          # QAA AirType + ADB Toolkit
+
+          面向 Windows 用户的可直接运行发行版，无需安装 Go 或自行编译。
+
+          ## 文件选择
+
+          - `QAA-AirType-Official-Tray-v2.3.0.exe`：手机网页/语音输入到 Windows 当前输入框。
+          - `QAA-ADB-Tap-v1.1.0.exe`：Android 无线调试版本。
+          - `QAA-ADB-Tap-v1.2.0-DirectADB.exe`：雷电模拟器、USB 真机及其他已进入 `adb devices` 的设备。
+          - `QAA-AirType-ADB-Toolkit-Windows.zip`：三个程序的一体包。
+          - `SHA256SUMS.txt`：完整性校验文件。
+
+          ## 备用下载
+
+          蓝奏云：https://wwaug.lanzoub.com/iRb7j3y7gdmb
+
+          ## 构建与校验
+
+          三个 EXE 由公开源码使用固定 Go 1.23.2 工具链重建。工作流在发布前强制核对三个固定 SHA-256，只有与已验证可用版本逐字节一致才允许上传。
+
+          本仓库是社区修改/扩展项目，不是 QAA-Tools 官方发行版。程序当前没有商业代码签名，Windows SmartScreen 可能提示“未知发布者”。
+          EOF
+
+          cat work/SHA256SUMS.txt
+
+      - name: Publish GitHub Release assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          exec > >(tee -a work/release.log) 2>&1
+          assets=(
+            dist/QAA-AirType-Official-Tray-v2.3.0.exe
+            dist/QAA-ADB-Tap-v1.1.0.exe
+            dist/QAA-ADB-Tap-v1.2.0-DirectADB.exe
+            work/QAA-AirType-ADB-Toolkit-Windows.zip
+            work/SHA256SUMS.txt
+          )
+
+          if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
+            gh release upload "${RELEASE_TAG}" "${assets[@]}" --clobber
+            gh release edit "${RELEASE_TAG}" \
+              --title "${RELEASE_TITLE}" \
+              --notes-file work/RELEASE_NOTES.md \
+              --latest
+          else
+            gh release create "${RELEASE_TAG}" "${assets[@]}" \
+              --target "${GITHUB_SHA}" \
+              --title "${RELEASE_TITLE}" \
+              --notes-file work/RELEASE_NOTES.md \
+              --latest
+          fi
+
+      - name: Report success
+        if: ${{ success() }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create \
+            --title "Release bot success v2: ${RELEASE_TAG}" \
+            --body "Three exact verified EXEs, the all-in-one ZIP, and SHA256SUMS were published. Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+      - name: Report detailed failure
+        if: ${{ failure() }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo 'The deterministic release workflow failed.'
+            echo
+            echo "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo
+            echo '```text'
+            tail -c 12000 work/release.log 2>/dev/null || true
+            echo '```'
+          } > /tmp/release-failure.md
+          gh issue create \
+            --title "Release bot failure v2: ${RELEASE_TAG}" \
+            --body-file /tmp/release-failure.md
