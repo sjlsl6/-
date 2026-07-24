@@ -1,7 +1,13 @@
 # Release files
 
-公开仓库以源码为主。三个已验证二进制版本的 SHA-256 见 `SHA256SUMS.txt`。
+正式发布页：
 
-> 注意：历史文件名 `QAA-AirType-Official-Tray-v2.3.0.exe` 中的 `Official` 仅是既有构建文件名，不代表本项目是 QAA-Tools 官方发行版。
+[QAA AirType + ADB Toolkit v2026.07.24](https://github.com/sjlsl6/-/releases/tag/v2026.07.24)
 
-建议从可信发布渠道获取二进制后，先核对 SHA-256 再运行。
+Release 提供三个独立 EXE、一个三合一 Windows ZIP 和 `SHA256SUMS.txt`。蓝奏云备用下载：
+
+[https://wwaug.lanzoub.com/iRb7j3y7gdmb](https://wwaug.lanzoub.com/iRb7j3y7gdmb)
+
+> 文件名 `QAA-AirType-Official-Tray-v2.3.0.exe` 中的 `Official` 是历史构建文件名，不代表本项目获得 QAA-Tools 官方背书或属于官方发行版。
+
+运行前请核对 SHA-256。

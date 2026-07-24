@@ -1,47 +1,53 @@
 # Build
 
-## Requirements
+## 已验证环境
 
-- Go 1.23 或兼容版本
-- Windows amd64 目标
-- 不需要 CGO
+- Go 1.23.2
+- `GOOS=windows`
+- `GOARCH=amd64`
+- `CGO_ENABLED=0`
+- Windows GUI subsystem
+- `-trimpath`
+- `-buildvcs=false`
 
-三个源码归档解压后均包含 `build_windows.cmd`。脚本会先执行测试，再以 `-trimpath` 和 Windows GUI 模式构建。
-
-## AirType v2.3.0
-
-解压 `src/airtype-v2.3.0-source.zip`，进入源码目录后运行：
-
-```bat
-build_windows.cmd
-```
-
-输出：`QAA-AirType-Official-Tray-v2.3.0.exe`
-
-## Wireless ADB Tap v1.1.0
-
-解压 `src/adb-tap-wireless-v1.1.0-source.zip`，进入源码目录后运行：
+三个源码 ZIP 解压后均包含 `go.mod`、完整源码、测试和 `build_windows.cmd`。进入对应根目录运行：
 
 ```bat
 build_windows.cmd
 ```
 
-输出：`QAA-ADB-Tap-v1.1.0.exe`
+脚本会先运行 `go test ./...`，测试成功后再生成 Windows GUI EXE。
 
-## DirectADB v1.2.0
+| 源码包 | 输出 |
+|---|---|
+| `src/airtype-v2.3.0-source.zip` | `QAA-AirType-Official-Tray-v2.3.0.exe` |
+| `src/adb-tap-wireless-v1.1.0-source.zip` | `QAA-ADB-Tap-v1.1.0.exe` |
+| `src/adb-tap-direct-v1.2.0-source.zip` | `QAA-ADB-Tap-v1.2.0-DirectADB.exe` |
 
-解压 `src/adb-tap-direct-v1.2.0-source.zip`，进入源码目录后运行：
+## 等效命令
 
-```bat
-build_windows.cmd
+Wireless 与 DirectADB：
+
+```text
+go test ./...
+go build -buildvcs=false -trimpath -ldflags "-s -w -H=windowsgui" -o <输出文件名> .
 ```
 
-输出：`QAA-ADB-Tap-v1.2.0-DirectADB.exe`
+AirType：
 
-## Validation
+```text
+go test ./...
+go build -buildvcs=false -trimpath -ldflags "-H=windowsgui -s -w -buildid=N1kGQiO1P6MzOKbcXgXd/skKJPixqLtyG3qtgIffH/_rsAK9qPrzbXJoXR7YLR/TWbXoBLMtW9ip9oHsDoQ" -o QAA-AirType-Official-Tray-v2.3.0.exe .
+```
 
-本次公开发布前，三套源码均使用 Go 1.23.2 执行 `go test ./...` 并通过。
+## 可复现性验证
 
-## Reproducibility notes
+在固定源码、Go 1.23.2 和上述参数下：
 
-构建脚本使用 `-trimpath`，避免把本机源码绝对路径写入 Go 构建信息。二进制结果仍可能因 Go 版本、链接器和源码状态不同而产生不同哈希，因此发布时应重新生成对应 SHA-256。
+- Wireless v1.1.0 重建结果与已测试 EXE 逐字节一致。
+- DirectADB v1.2.0 重建结果与已测试 EXE 逐字节一致。
+- AirType v2.3.0 的源码逻辑一致，但 Go 链接器生成的 Build ID 会影响文件哈希；归档中的构建脚本固定了原构建的 Build ID，因此重建结果也与已测试 EXE 逐字节一致。
+
+这个 Build ID 只用于复现已经验证的历史二进制，不代表版本签名或安全凭据。更换 Go 版本、源码或链接参数后，不应继续声称新文件具有已发布 EXE 的哈希。
+
+三个正式 EXE 的基准 SHA-256 见仓库根目录 README 和 `releases/SHA256SUMS.txt`。

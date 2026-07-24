@@ -1,115 +1,64 @@
 # QAA AirType + ADB Toolkit
 
-一个面向 Windows + Android 的本地输入辅助工具合集：用手机更方便地完成语音/文字输入，并可通过 ADB 把数字小键盘按键映射为 Android 屏幕点击。
+面向 Windows + Android 的三个独立小工具：用手机给电脑输入文字，或用数字小键盘控制 Android 固定坐标点击。
 
-本仓库同时保留三条稳定版本线：
+## 快速下载
 
-| 组件 | 版本 | 主要用途 |
-|---|---|---|
-| QAA AirType | v2.3.0 | 手机网页输入/语音输入 → Windows 当前输入位置 |
-| QAA ADB Tap Wireless | v1.1.0 | Android 无线调试配对/连接 + `-`/`+` 坐标点击 |
-| QAA ADB Tap DirectADB | v1.2.0 | 直接使用 `adb devices` 中现有设备，适合雷电模拟器、USB 真机等 |
+| 你的需求 | 下载 |
+|---|---|
+| 手机语音/手机输入法输入到电脑当前文本框 | `QAA-AirType-Official-Tray-v2.3.0.exe` |
+| Android 真机无线调试 | `QAA-ADB-Tap-v1.1.0.exe` |
+| 雷电模拟器、其他模拟器或 USB ADB 真机 | `QAA-ADB-Tap-v1.2.0-DirectADB.exe` |
+| 一次下载全部三个程序 | `QAA-AirType-ADB-Toolkit-Windows.zip` |
 
-> **项目身份说明**：本仓库是社区修改/扩展项目，不是 `QAA-Tools` 官方发行版。历史二进制文件名中出现的 `Official` 不代表官方背书。
+- **主要下载入口：[GitHub Releases — v2026.07.24](https://github.com/sjlsl6/-/releases/tag/v2026.07.24)**
+- **蓝奏云备用下载：[https://wwaug.lanzoub.com/iRb7j3y7gdmb](https://wwaug.lanzoub.com/iRb7j3y7gdmb)**
 
-## 为什么做这个项目
+下载后请核对 [SHA-256](#sha-256-校验)。GitHub Releases 是本公开仓库的主要发布渠道；蓝奏云仅作为备用下载，不参与程序运行或发布流程。
 
-电脑端语音输入在麦克风、识别效果和输入法体验上不一定理想，而手机端语音输入通常更顺手。AirType 让手机承担“输入设备”的角色：手机上完成语音转文字，再把文本发送到电脑当前输入框。
-
-在此基础上，ADB Tap 解决另一类操作：当手机或模拟器上的固定按钮需要反复点击时，可以把数字小键盘 `-` / `+` 映射为 Android 的两个坐标点击，并准备三套可切换坐标模式。
+> **项目身份说明**：本仓库是社区修改/扩展项目，不是 QAA-Tools 官方仓库。文件名中的 `Official` 是历史构建文件名，不代表本项目获得 QAA-Tools 官方背书或属于官方发行版。为保持已验证文件的哈希不变，该 EXE 不重命名。
 
 ## 三个组件
 
-### QAA AirType v2.3.0
+| 组件 | 版本 | 连接方式 | 适合场景 | 核心功能 |
+|---|---:|---|---|---|
+| QAA AirType | v2.3.0 | 手机浏览器 → 可信局域网 → Windows | 把手机当作电脑语音/文字输入设备 | 托盘常驻、二维码、Token 校验、向当前文本框输入 |
+| QAA ADB Tap Wireless | v1.1.0 | Android 无线调试 | Android 真机无线使用 | 无线配对/连接、三套坐标、数字小键盘 `-` / `+`、ADB Shell 点击 |
+| QAA ADB Tap DirectADB | v1.2.0 | 已存在的 ADB transport | 雷电模拟器、USB 调试真机 | 读取 `adb devices -l`、单设备直用、多设备选择、三套坐标与热键 |
 
-典型链路：`手机输入法/语音输入 → 手机网页 → 局域网 → Windows AirType → 当前输入框`
+三个程序彼此独立，可以只下载和运行需要的一个。
 
-主要能力：
+## AirType：手机语音/文字输入电脑
 
-- Windows 托盘常驻。
-- 自动发现适合局域网访问的地址。
-- 生成手机访问二维码。
-- 使用随机 Token 对请求进行校验。
-- 手机端发送文字后写入电脑当前输入位置。
-- 适合搭配手机端语音输入法使用。
+工作链路：`手机输入法/语音输入 → 手机网页 → 局域网 → Windows → 当前输入框`
 
-源码归档：`src/airtype-v2.3.0-source.zip`
+1. 在 Windows 启动 AirType。
+2. 从托盘打开二维码或手机访问地址。
+3. 确保手机和电脑位于同一可信局域网，再用手机浏览器访问。
+4. 先让电脑上的目标文本框获得焦点。
+5. 在手机网页中使用手机输入法或语音转文字并发送。
 
-### QAA ADB Tap v1.1.0 — Wireless ADB
+程序使用运行时 Token 校验请求。请勿公开带 Token 的二维码、URL 或配置文件。
 
-面向 Android 无线调试：
+## Wireless ADB：无线真机
 
-- 支持无线调试二维码配对流程。
-- 支持手动 ADB 地址连接作为备用。
-- 支持三套独立坐标模式。
-- 数字小键盘 `-` / `+` 触发对应坐标点击。
-- 使用常驻 ADB Shell，减少连续触发时反复启动 `adb shell` 的开销。
+1. 在 Android 开发者选项中开启无线调试。
+2. 启动 `QAA-ADB-Tap-v1.1.0.exe`，按界面完成无线配对/连接；也可手动填写连接地址。
+3. 配置三套模式中的 `-` / `+` 点击坐标。
+4. 使用数字小键盘 `-` 或 `+`，通过常驻 ADB Shell 触发 Android 点击。
 
-源码归档：`src/adb-tap-wireless-v1.1.0-source.zip`
+无线配对码、ADB 地址和设备信息只应保留在本机。
 
-### QAA ADB Tap v1.2.0 — DirectADB
+## DirectADB：模拟器或 USB 真机
 
-这是对连接层的定向改版：不再处理无线配对，而是直接复用已经存在的 ADB 设备连接。
+1. 先确保目标设备在 `adb devices -l` 中显示为 `device`。
+2. 启动 `QAA-ADB-Tap-v1.2.0-DirectADB.exe`。
+3. 只有一个可用设备时可直接使用；有多个设备时选择目标设备。
+4. 配置三套坐标，使用数字小键盘 `-` / `+` 触发点击。
 
-- 不填 IP/端口。
-- 不生成无线调试二维码。
-- 不执行 `adb connect`。
-- 不使用 mDNS 扫描。
-- 读取 `adb devices -l`。
-- 单个 `device` 状态设备时自动选择。
-- 多设备时可选择目标设备。
-- 适合雷电模拟器等模拟器，也支持已经授权的 USB 调试真机。
-- 保留三套坐标模式、`-` / `+` 热键和常驻 Shell 点击链路。
+DirectADB 不要求填写无线 ADB IP/端口，不生成配对二维码，不执行 `adb connect`，也不依赖 mDNS。详细步骤见 [docs/USAGE.md](docs/USAGE.md)。
 
-源码归档：`src/adb-tap-direct-v1.2.0-source.zip`
-
-## 推荐使用方式
-
-只需要“手机语音输入到电脑”时，只运行 AirType 即可。
-
-需要控制 Android 固定按钮时，再按设备连接方式选择一个 ADB Tap：
-
-- 真机无线调试：Wireless v1.1.0。
-- 雷电模拟器、USB 真机或已在 `adb devices` 中的设备：DirectADB v1.2.0。
-
-详细步骤见 `docs/USAGE.md`。
-
-## 仓库结构
-
-```text
-src/
-├─ airtype-v2.3.0-source.zip
-├─ adb-tap-wireless-v1.1.0-source.zip
-├─ adb-tap-direct-v1.2.0-source.zip
-└─ README.md
-
-docs/
-├─ USAGE.md
-├─ BUILD.md
-└─ ARCHITECTURE.md
-
-licenses/
-├─ APACHE-2.0.txt
-└─ QR_CODE_LICENSE.txt
-```
-
-三个 `*-source.zip` 均为纯源码归档，不包含 EXE、运行时 `config.json`、个人 Token、真实设备序列号或本机私有配置。
-
-## 构建
-
-三个项目均为 Go 项目，当前源码按 Go 1.23 系列验证。下载并解压对应源码包后，在项目目录运行：
-
-```bat
-build_windows.cmd
-```
-
-脚本会先执行 `go test ./...`，然后构建 Windows amd64 GUI 程序。构建使用 `-trimpath`，减少本机绝对源码路径进入构建信息的风险。
-
-本次发布前，三套源码均已执行 `go test ./...` 并通过。
-
-完整说明见 `docs/BUILD.md`。
-
-## 已验证二进制哈希
+## SHA-256 校验
 
 ```text
 fd685aba6db35ff8e4a24a5056fac2d7a0cfcf7faccaa89e9d2c5afe3ae871f7  QAA-ADB-Tap-v1.1.0.exe
@@ -117,35 +66,58 @@ fd685aba6db35ff8e4a24a5056fac2d7a0cfcf7faccaa89e9d2c5afe3ae871f7  QAA-ADB-Tap-v1
 0326275e8a0abed9d61b4ae713d9c0c84f2eb012632832f0bd72de82c2454cbc  QAA-AirType-Official-Tray-v2.3.0.exe
 ```
 
-同样记录在 `releases/SHA256SUMS.txt`。公开仓库当前以源码和文档为主，二进制文件可从你信任的发布渠道取得后按哈希校验。
+PowerShell 校验示例：
+
+```powershell
+Get-FileHash .\QAA-AirType-Official-Tray-v2.3.0.exe -Algorithm SHA256
+```
+
+Release 还提供可供批量校验的 `SHA256SUMS.txt`。
+
+## 源码与构建
+
+`src/` 中有三个独立的、可完整解压的源码 ZIP：
+
+- `src/airtype-v2.3.0-source.zip`
+- `src/adb-tap-wireless-v1.1.0-source.zip`
+- `src/adb-tap-direct-v1.2.0-source.zip`
+
+源码包不包含 EXE、运行时 `config.json`、个人 Token、真实设备序列号、ADB 配对信息或本机配置。三个项目均已使用 Go 1.23.2 通过 `go test ./...`，并完成 Windows amd64、`CGO_ENABLED=0`、GUI subsystem、`-trimpath` 构建验证。每个归档内都可直接运行：
+
+```bat
+build_windows.cmd
+```
+
+精确构建和可复现性说明见 [docs/BUILD.md](docs/BUILD.md)，架构说明见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
+
+## 仓库结构
+
+```text
+docs/       使用、构建与架构文档
+licenses/   第三方许可证文本
+releases/   已发布二进制校验和与 Release 说明
+src/        三套完整源码归档
+```
 
 ## 隐私与安全
 
-- 不要把运行时 `config.json` 提交到公开仓库。
-- 不要公开真实设备序列号、真实点击坐标、无线 ADB 配对码、个人 Token 或带 Token 的二维码/URL。
-- AirType 设计用于可信局域网，不建议把服务端口直接暴露到公网。
-- ADB 权限较高，只应连接你拥有或明确获授权控制的设备。
+- AirType 主要用于可信局域网；不建议将服务端口直接暴露到公网。
+- 不要公开带 Token 的访问地址、二维码、`config.json`、无线配对码、设备序列号或私人网络信息。
+- ADB 权限较高，只应连接自己拥有或已经获得明确授权的设备。
+- 本项目不包含广告 SDK、行为分析或遥测上报逻辑。
 
-详见 `PRIVACY.md` 与 `SECURITY.md`。
+详见 [PRIVACY.md](PRIVACY.md) 与 [SECURITY.md](SECURITY.md)。
 
-## 上游来源与许可
+## 上游来源与许可证
 
-本项目参考/延续了 `QAA-Tools/qaa-airtype` 的使用目标。上游项目采用 MIT License，原版权声明为：
+AirType 参考/延续了 [QAA-Tools/qaa-airtype](https://github.com/QAA-Tools/qaa-airtype) 的使用目标。上游采用 MIT License，版权声明为 `Copyright (c) 2025 Sync Input Contributors`；本仓库保留该声明与 MIT 许可要求，并明确属于社区修改/扩展版本。
 
-`Copyright (c) 2025 Sync Input Contributors`
+ADB 属于 Android/AOSP 相关组件。ADB Tap 可在用户主动操作时从 Genymobile 的 scrcpy Windows 发布包中提取 ADB 所需文件；这些第三方组件适用 Apache License 2.0。**本仓库与本次 Release 均不捆绑 ADB 或 scrcpy 二进制。**
 
-本仓库保留该版权与 MIT 许可要求，并对本仓库修改部分继续采用 MIT License。
+本仓库原创/修改部分采用 MIT License。请同时阅读 [LICENSE](LICENSE)、[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) 和 [licenses/](licenses/)。
 
-ADB 属于 Android Open Source Project；DirectADB/无线版在用户主动准备 ADB 时可从 Genymobile 的 scrcpy Windows 发布包中提取 ADB 所需文件。相关组件遵循 Apache License 2.0。本仓库不直接提交 scrcpy 或 ADB 二进制。
+QAA、Google、Android、AOSP、Genymobile、scrcpy 等名称仅用于说明来源或兼容性，不代表任何官方背书。
 
-二维码实现相关第三方声明见 `licenses/QR_CODE_LICENSE.txt`。
+## 免责声明
 
-完整第三方说明见 `THIRD_PARTY_NOTICES.md`。
-
-## License
-
-本仓库原创/修改部分按 MIT License 开源；第三方代码与组件按其各自许可证授权。请同时阅读 `LICENSE`、`THIRD_PARTY_NOTICES.md` 及 `licenses/`。
-
-## Disclaimer
-
-本项目按“现状”提供，不提供任何形式的担保。使用 ADB、自动点击或输入注入前，请自行确认目标设备、应用和使用场景符合相关授权、平台规则与法律要求。
+项目按“现状”提供，不作任何明示或默示保证。使用输入注入、ADB 或自动点击前，请自行确认目标设备、应用和使用场景符合相关授权、平台规则与法律要求。

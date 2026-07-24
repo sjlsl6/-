@@ -1,0 +1,64 @@
+name: Source archives
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - ".github/workflows/source-ci.yml"
+  pull_request:
+    paths:
+      - "src/**"
+      - ".github/workflows/source-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - archive: src/airtype-v2.3.0-source.zip
+            directory: airtype-v2.3.0
+            output: QAA-AirType-Official-Tray-v2.3.0.exe
+            expected: 0326275e8a0abed9d61b4ae713d9c0c84f2eb012632832f0bd72de82c2454cbc
+          - archive: src/adb-tap-wireless-v1.1.0-source.zip
+            directory: adb-tap-wireless-v1.1.0
+            output: QAA-ADB-Tap-v1.1.0.exe
+            expected: fd685aba6db35ff8e4a24a5056fac2d7a0cfcf7faccaa89e9d2c5afe3ae871f7
+          - archive: src/adb-tap-direct-v1.2.0-source.zip
+            directory: adb-tap-direct-v1.2.0
+            output: QAA-ADB-Tap-v1.2.0-DirectADB.exe
+            expected: 933ac71e5d68b8a6e7d52968c298b758c2cb55bde93611234ce33ea392453cd2
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23.2"
+
+      - name: Test archive integrity
+        shell: pwsh
+        run: 7z t '${{ matrix.archive }}'
+
+      - name: Extract source
+        shell: pwsh
+        run: Expand-Archive -LiteralPath '${{ matrix.archive }}' -DestinationPath extracted
+
+      - name: Test and build with packaged script
+        working-directory: extracted/${{ matrix.directory }}
+        shell: cmd
+        run: build_windows.cmd
+
+      - name: Verify reconstructed EXE
+        working-directory: extracted/${{ matrix.directory }}
+        shell: pwsh
+        run: |
+          $actual = (Get-FileHash -LiteralPath '${{ matrix.output }}' -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne '${{ matrix.expected }}') {
+            throw "SHA-256 mismatch: $actual"
+          }

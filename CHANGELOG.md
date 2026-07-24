@@ -1,5 +1,13 @@
 # Changelog
 
+## Toolkit v2026.07.24
+
+- 首次把 AirType v2.3.0、ADB Tap Wireless v1.1.0 与 DirectADB v1.2.0 作为同一 Toolkit 正式发布。
+- 提供三个已验证独立 EXE、三合一 Windows ZIP 和 SHA-256 校验文件。
+- 修复并替换三个损坏的源码 ZIP；加入完整测试、构建、许可证与来源说明。
+- 清理此前基于 Issue、Actions 和第三方蓝奏解析服务的失败发布实验。
+- GitHub Releases 作为主要下载入口，蓝奏云作为备用下载渠道。
+
 ## AirType v2.3.0
 
 - Windows 托盘常驻。
