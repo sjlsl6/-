@@ -12,25 +12,6 @@
 
 > **项目身份说明**：本仓库是社区修改/扩展项目，不是 `QAA-Tools` 官方发行版。历史二进制文件名中出现的 `Official` 不代表官方背书。
 
-## 下载与直接使用
-
-普通用户不需要安装 Go，也不需要自己编译源码。
-
-- **GitHub Releases（推荐）**：https://github.com/sjlsl6/-/releases/latest
-- **蓝奏云备用下载**：https://wwaug.lanzoub.com/iRb7j3y7gdmb
-
-正式发行版包含：
-
-- `QAA-AirType-Official-Tray-v2.3.0.exe`
-- `QAA-ADB-Tap-v1.1.0.exe`
-- `QAA-ADB-Tap-v1.2.0-DirectADB.exe`
-- 包含以上三个程序的 Windows 一体包 ZIP
-- `SHA256SUMS.txt`
-
-GitHub 自动发布流程使用固定 Go 1.23.2 工具链从本仓库公开源码重新构建三个 EXE，并逐个核对已验证可用版本的固定 SHA-256。任何测试、构建或哈希校验不通过时，流程都会直接失败，不会发布错误版本。蓝奏云链接作为备用下载入口保留。
-
-这三个 EXE 当前没有商业代码签名证书。Windows SmartScreen 可能显示“未知发布者”，请先核对 SHA-256，并确认文件来源是本仓库 Releases 或上面的蓝奏云链接。
-
 ## 为什么做这个项目
 
 电脑端语音输入在麦克风、识别效果和输入法体验上不一定理想，而手机端语音输入通常更顺手。AirType 让手机承担“输入设备”的角色：手机上完成语音转文字，再把文本发送到电脑当前输入框。
@@ -136,7 +117,7 @@ fd685aba6db35ff8e4a24a5056fac2d7a0cfcf7faccaa89e9d2c5afe3ae871f7  QAA-ADB-Tap-v1
 0326275e8a0abed9d61b4ae713d9c0c84f2eb012632832f0bd72de82c2454cbc  QAA-AirType-Official-Tray-v2.3.0.exe
 ```
 
-同样记录在 `releases/SHA256SUMS.txt` 和 GitHub Release 附件中。
+同样记录在 `releases/SHA256SUMS.txt`。公开仓库当前以源码和文档为主，二进制文件可从你信任的发布渠道取得后按哈希校验。
 
 ## 隐私与安全
 
