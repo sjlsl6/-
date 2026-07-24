@@ -1,4 +1,4 @@
-# QAA AirType + ADB Toolkit v2026.07.24
+# QAA Voice Input Toolkit v2026.07.24｜豆包 / 微信输入法语音输入 Windows
 
 这是三个独立 Windows 工具的正式合集发布。
 
