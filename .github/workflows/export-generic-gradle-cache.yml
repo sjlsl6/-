@@ -24,12 +24,12 @@ jobs:
           java-version: '17'
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
-      - name: Install Android API 35
+      - name: Install Android APIs and build tools
         shell: bash
         run: |
           set -euo pipefail
           yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'build-tools;34.0.0'
       - name: Create generic dependency-only Android project
         shell: bash
         run: |
@@ -81,7 +81,7 @@ jobs:
         run: |
           set -euo pipefail
           gradle --no-daemon :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
-      - name: Package portable JDK and Gradle dependency cache
+      - name: Package portable JDK, SDK component, and Gradle dependency cache
         shell: bash
         run: |
           set -euo pipefail
@@ -90,8 +90,9 @@ jobs:
           JDK_NAME="$(basename "$JAVA_HOME")"
           tar -chzf out/jdk17-linux-x64-portable.tar.gz -C "$JDK_PARENT" "$JDK_NAME"
           tar -czf out/gradle-8.9-android-dependency-cache.tar.gz -C "$HOME/.gradle/caches" modules-2
+          tar -czf out/android-build-tools-34.0.0-linux-x64.tar.gz -C "$ANDROID_HOME" build-tools/34.0.0
           printf '%s\n' \
-            'Generic cache only: AGP 8.7.3 and AndroidX test dependencies resolved by a blank app.' \
+            'Generic cache only: AGP 8.7.3, AndroidX test dependencies, JDK 17, and Android Build Tools 34.0.0.' \
             'No SPS-PD source, patches, APK, signing material, credentials, or save data.' \
             > out/README.txt
           (cd out && sha256sum *.tar.gz > SHA256SUMS.txt)
@@ -99,7 +100,7 @@ jobs:
       - name: Upload generic cache
         uses: actions/upload-artifact@v4
         with:
-          name: generic-agp873-androidx-cache-jdk17
+          name: generic-agp873-androidx-cache-jdk17-bt34
           path: out/*
           if-no-files-found: error
           retention-days: 1
