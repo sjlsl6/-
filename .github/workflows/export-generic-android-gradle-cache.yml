@@ -102,7 +102,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gradle --no-daemon :app:assembleRelease :app:assembleReleaseAndroidTest --stacktrace
+          gradle --no-daemon :app:assembleRelease :app:assembleDebugAndroidTest --stacktrace
 
       - name: Package portable Gradle cache
         shell: bash
