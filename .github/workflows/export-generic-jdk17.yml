@@ -1,3 +1,4 @@
+# Temporary generic JDK export trigger.
 name: Export Generic JDK 17
 
 on:
