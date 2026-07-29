@@ -30,7 +30,7 @@ jobs:
           set -euo pipefail
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager 'platform-tools' 'emulator' 'system-images;android-33;default;x86_64'
-      - name: Package portable Android 13 emulator
+      - name: Package and split portable Android 13 emulator
         shell: bash
         run: |
           set -euo pipefail
@@ -39,16 +39,51 @@ jobs:
             emulator \
             platform-tools \
             system-images/android-33/default/x86_64
+          sha256sum out/android13-emulator-x86_64-portable.tar.gz > out/ARCHIVE_SHA256.txt
+          split -b 300M -d -a 2 \
+            out/android13-emulator-x86_64-portable.tar.gz \
+            out/android13-emulator-x86_64-portable.part-
+          rm out/android13-emulator-x86_64-portable.tar.gz
           printf '%s\n' \
             'Generic Android 13 emulator binaries and AOSP x86_64 system image only.' \
+            'Join part-00, part-01, part-02, part-03 in order, then verify ARCHIVE_SHA256.txt.' \
             'No SPS-PD source, patches, APK, signing material, credentials, or save data.' \
             > out/README.txt
-          (cd out && sha256sum *.tar.gz > SHA256SUMS.txt)
           ls -lh out
-      - name: Upload generic emulator
+      - name: Upload emulator part 00
         uses: actions/upload-artifact@v4
         with:
-          name: generic-android13-emulator-x86_64
-          path: out/*
+          name: generic-android13-emulator-part-00
+          path: out/android13-emulator-x86_64-portable.part-00
+          if-no-files-found: error
+          retention-days: 1
+      - name: Upload emulator part 01
+        uses: actions/upload-artifact@v4
+        with:
+          name: generic-android13-emulator-part-01
+          path: out/android13-emulator-x86_64-portable.part-01
+          if-no-files-found: error
+          retention-days: 1
+      - name: Upload emulator part 02
+        uses: actions/upload-artifact@v4
+        with:
+          name: generic-android13-emulator-part-02
+          path: out/android13-emulator-x86_64-portable.part-02
+          if-no-files-found: error
+          retention-days: 1
+      - name: Upload emulator part 03
+        uses: actions/upload-artifact@v4
+        with:
+          name: generic-android13-emulator-part-03
+          path: out/android13-emulator-x86_64-portable.part-03
+          if-no-files-found: error
+          retention-days: 1
+      - name: Upload emulator manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: generic-android13-emulator-manifest
+          path: |
+            out/README.txt
+            out/ARCHIVE_SHA256.txt
           if-no-files-found: error
           retention-days: 1
