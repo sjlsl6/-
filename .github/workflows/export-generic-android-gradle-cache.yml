@@ -46,6 +46,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p dummy/app/src/main/java/example/toolchain dummy/app/src/androidTest/java/example/toolchain
+          printf '%s\n' 'android.useAndroidX=true' > dummy/gradle.properties
           cat > dummy/settings.gradle <<'EOF'
           pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
           dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
