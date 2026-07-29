@@ -1,0 +1,49 @@
+name: Export Generic Android 13 Emulator
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - '.toolchain-cache-trigger'
+      - '.github/workflows/export-generic-android13-emulator.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export-emulator:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Download generic Android 13 emulator components
+        shell: bash
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager 'platform-tools' 'emulator' 'system-images;android-33;default;x86_64'
+      - name: Package portable Android 13 emulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          tar -czf out/android13-emulator-x86_64-portable.tar.gz -C "$ANDROID_HOME" \
+            emulator \
+            platform-tools \
+            system-images/android-33/default/x86_64
+          printf '%s\n' \
+            'Generic Android 13 emulator binaries and AOSP x86_64 system image only.' \
+            'No SPS-PD source, patches, APK, signing material, credentials, or save data.' \
+            > out/README.txt
+          (cd out && sha256sum *.tar.gz > SHA256SUMS.txt)
+          ls -lh out
+      - name: Upload generic emulator
+        uses: actions/upload-artifact@v4
+        with:
+          name: generic-android13-emulator-x86_64
+          path: out/*
+          if-no-files-found: error
+          retention-days: 1
