@@ -57,6 +57,7 @@ jobs:
               versionName '1.0'
               testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
             }
+            lint { abortOnError false; checkReleaseBuilds true }
           }
           dependencies {
             androidTestImplementation 'androidx.test:runner:1.6.1'
@@ -71,16 +72,16 @@ jobs:
           org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
           android.useAndroidX=true
           EOF
-      - name: Resolve AGP and AndroidX dependencies
+      - name: Resolve AGP, AndroidX, release and lint dependencies
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Build generic app and test APK
+      - name: Build generic debug, release, test APK, and lint
         working-directory: generic
         shell: bash
         run: |
           set -euo pipefail
-          gradle --no-daemon :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
+          gradle --no-daemon :app:assembleDebug :app:assembleRelease :app:assembleDebugAndroidTest :app:lintRelease --stacktrace
       - name: Package portable JDK, SDK component, and Gradle dependency cache
         shell: bash
         run: |
@@ -92,7 +93,7 @@ jobs:
           tar -czf out/gradle-8.9-android-dependency-cache.tar.gz -C "$HOME/.gradle/caches" modules-2
           tar -czf out/android-build-tools-34.0.0-linux-x64.tar.gz -C "$ANDROID_HOME" build-tools/34.0.0
           printf '%s\n' \
-            'Generic cache only: AGP 8.7.3, AndroidX test dependencies, JDK 17, and Android Build Tools 34.0.0.' \
+            'Generic cache only: AGP 8.7.3, AndroidX test dependencies, release/lint dependencies, JDK 17, and Android Build Tools 34.0.0.' \
             'No SPS-PD source, patches, APK, signing material, credentials, or save data.' \
             > out/README.txt
           (cd out && sha256sum *.tar.gz > SHA256SUMS.txt)
@@ -100,7 +101,7 @@ jobs:
       - name: Upload generic cache
         uses: actions/upload-artifact@v4
         with:
-          name: generic-agp873-androidx-cache-jdk17-bt34
+          name: generic-agp873-androidx-release-lint-cache
           path: out/*
           if-no-files-found: error
           retention-days: 1
