@@ -36,7 +36,8 @@ jobs:
           tar -chzf out/temurin-jdk17-linux-x64.tar.gz -C "$JDK_PARENT" "$JDK_NAME"
           printf '%s\n' 'Generic Temurin JDK 17 only; no project files are included.' > out/README.txt
           (cd out && sha256sum temurin-jdk17-linux-x64.tar.gz > SHA256SUMS.txt)
-          tar -tzf out/temurin-jdk17-linux-x64.tar.gz | grep -m1 '/bin/javac$'
+          tar -tzf out/temurin-jdk17-linux-x64.tar.gz > out/JDK_CONTENTS.txt
+          grep -m1 '/bin/javac$' out/JDK_CONTENTS.txt
 
       - name: Upload generic JDK
         uses: actions/upload-artifact@v4
