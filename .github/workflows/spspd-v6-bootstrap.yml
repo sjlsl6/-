@@ -20,7 +20,20 @@ jobs:
       - name: Checkout build controller
         uses: actions/checkout@v4
 
-      - name: Set up Java 8
+      - name: Set up Java 17 for Android SDK tools
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform
+        shell: bash
+        run: sdkmanager 'platforms;android-30' 'build-tools;30.0.3'
+
+      - name: Switch to Java 8 for legacy SPS-PD build
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -30,13 +43,6 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '6.7.1'
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android platform
-        shell: bash
-        run: sdkmanager 'platforms;android-30' 'build-tools;30.0.3'
 
       - name: Restore fixed upstream and verified V6 patch
         shell: bash
