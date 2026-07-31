@@ -1,0 +1,59 @@
+name: SPS-PD V6 Build
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.spspd-v6-trigger'
+      - '.github/workflows/spspd-v6-bootstrap.yml'
+      - 'spspd-v6/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 35
+    steps:
+      - name: Checkout build controller
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17 for Android SDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform
+        run: sdkmanager 'platforms;android-30' 'build-tools;30.0.3'
+
+      - name: Switch to Java 8 for legacy project
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+
+      - name: Set up Gradle 6.7.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '6.7.1'
+
+      - name: Repair and verify V6 patch
+        run: python3 spspd-v6/repair_patch.py
+
+      - name: Build and verify V6
+        run: bash spspd-v6/build-v6.sh
+
+      - name: Upload V6 deliverables
+        uses: actions/upload-artifact@v4
+        with:
+          name: SPS-PD-Simple-Stable-V6-deliverables
+          path: deliverables/
+          if-no-files-found: error
+          retention-days: 7
