@@ -1,0 +1,42 @@
+name: SPS-PD V6 Bootstrap
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - '.spspd-v6-trigger'
+      - '.github/workflows/spspd-v6-bootstrap.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch fixed SPS-PD upstream
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone https://github.com/hmdzl001/SPS-PD.git upstream
+          cd upstream
+          git checkout 8e2127663e61a92d151362d464fc2b19d60f0522
+          rm -rf .git
+          printf '%s\n' '8e2127663e61a92d151362d464fc2b19d60f0522' > UPSTREAM_COMMIT.txt
+      - name: Package fixed source baseline
+        shell: bash
+        run: |
+          zip -qr SPS-PD-upstream-0.9.8full.zip upstream
+          sha256sum SPS-PD-upstream-0.9.8full.zip > SHA256SUMS.txt
+      - name: Upload source baseline
+        uses: actions/upload-artifact@v4
+        with:
+          name: spspd-v6-bootstrap-source
+          path: |
+            SPS-PD-upstream-0.9.8full.zip
+            SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 2
