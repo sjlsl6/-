@@ -13,6 +13,19 @@ printf '%s\n' "$UPSTREAM_COMMIT" > UPSTREAM_COMMIT.txt
 git apply --check "$ROOT/v6.patch"
 git apply "$ROOT/v6.patch"
 
+# Compatibility fixes for this legacy RenderedText API.
+python3 - <<'PY'
+from pathlib import Path
+for relative in (
+    'java/com/hmdzl/spspd/windows/WndDeveloper.java',
+    'java/com/hmdzl/spspd/windows/WndSimpleSettings.java',
+):
+    path = Path(relative)
+    text = path.read_text(encoding='utf-8')
+    text = text.replace('title.bottom()', '(title.y + title.height())')
+    path.write_text(text, encoding='utf-8')
+PY
+
 mkdir -p signing
 keytool -genkeypair -v \
   -keystore signing/spspd-v6.keystore \
