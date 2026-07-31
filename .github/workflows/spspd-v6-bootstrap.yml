@@ -24,11 +24,12 @@ jobs:
           base64 --decode assembled.b64 > v6.patch
           sha256sum assembled.b64 v6.patch > transported-checksums.txt
           cat transported-checksums.txt
-      - name: Upload transported patch
+      - name: Upload transported patch and source chunks
         uses: actions/upload-artifact@v4
         with:
-          name: spspd-v6-transport-debug
+          name: spspd-v6-transport-chunks
           path: |
+            spspd-v6/patch-b64/
             assembled.b64
             v6.patch
             transported-checksums.txt
