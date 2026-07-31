@@ -37,6 +37,8 @@ text = text.replace(
     "    buildTypes {",
 )
 text = text.replace('signingConfig signingConfigs.debug', 'signingConfig signingConfigs.v6')
+if 'allprojects {' not in text:
+    text += "\nallprojects {\n    repositories {\n        google()\n        mavenCentral()\n    }\n}\n"
 path.write_text(text, encoding='utf-8')
 PY
 
